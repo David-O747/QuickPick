@@ -1,3 +1,4 @@
+![Uploading IMG_3936.PNG…]()
 # QuickPick
 
 QuickPick is a mobile movie discovery app built with Expo and React Native.  
