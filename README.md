@@ -1,5 +1,7 @@
 <img width="184" height="350" alt="IMG_3937 3" src="https://github.com/user-attachments/assets/083b0646-7ab8-4175-9752-5ae3f2deef8c" />
 
+
+
 QuickPick is a mobile movie discovery app built with Expo and React Native.  
 It shows a swipe-style feed of movies from TMDB, with quick details and watchlist save toggles.
 
