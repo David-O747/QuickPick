@@ -1,5 +1,4 @@
-<img width="284" height="778" alt="IMG_3937 3" src="https://github.com/user-attachments/assets/083b0646-7ab8-4175-9752-5ae3f2deef8c" />
-<img width="284" height="778" alt="IMG_3935 5" src="https://github.com/user-attachments/assets/3031d0b7-c88e-4176-bb6d-09f2575996ee" />
+<img width="584" height="778" alt="IMG_3937 3" src="https://github.com/user-attachments/assets/083b0646-7ab8-4175-9752-5ae3f2deef8c" />
 # QuickPick
 
 QuickPick is a mobile movie discovery app built with Expo and React Native.  
