@@ -1,98 +1,191 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { FlashList } from '@shopify/flash-list';
 import { Image } from 'expo-image';
-import { Platform, StyleSheet } from 'react-native';
+import React, { useEffect, useMemo, useState } from 'react';
+import { Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 
-import { HelloWave } from '@/components/hello-wave';
-import ParallaxScrollView from '@/components/parallax-scroll-view';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { Link } from 'expo-router';
+import { genreLabels } from '@/components/feed/genreLabels';
+import { dedupeMovies, fetchDiscover, fetchPopular, type TmdbMovie } from '@/components/feed/tmdbFeedApi';
 
 export default function HomeScreen() {
-  return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
-      headerImage={
-        <Image
-          source={require('@/assets/images/partial-react-logo.png')}
-          style={styles.reactLogo}
-        />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Welcome!</ThemedText>
-        <HelloWave />
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 1: Try it</ThemedText>
-        <ThemedText>
-          Edit <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> to see changes.
-          Press{' '}
-          <ThemedText type="defaultSemiBold">
-            {Platform.select({
-              ios: 'cmd + d',
-              android: 'cmd + m',
-              web: 'F12',
-            })}
-          </ThemedText>{' '}
-          to open developer tools.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <Link href="/modal">
-          <Link.Trigger>
-            <ThemedText type="subtitle">Step 2: Explore</ThemedText>
-          </Link.Trigger>
-          <Link.Preview />
-          <Link.Menu>
-            <Link.MenuAction title="Action" icon="cube" onPress={() => alert('Action pressed')} />
-            <Link.MenuAction
-              title="Share"
-              icon="square.and.arrow.up"
-              onPress={() => alert('Share pressed')}
-            />
-            <Link.Menu title="More" icon="ellipsis">
-              <Link.MenuAction
-                title="Delete"
-                icon="trash"
-                destructive
-                onPress={() => alert('Delete pressed')}
-              />
-            </Link.Menu>
-          </Link.Menu>
-        </Link>
+  const { height } = useWindowDimensions();
+  const [movies, setMovies] = useState<TmdbMovie[]>([]);
+  const [page, setPage] = useState(1);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [watchlist, setWatchlist] = useState<Set<number>>(new Set());
 
-        <ThemedText>
-          {`Tap the Explore tab to learn more about what's included in this starter app.`}
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 3: Get a fresh start</ThemedText>
-        <ThemedText>
-          {`When you're ready, run `}
-          <ThemedText type="defaultSemiBold">npm run reset-project</ThemedText> to get a fresh{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> directory. This will move the current{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> to{' '}
-          <ThemedText type="defaultSemiBold">app-example</ThemedText>.
-        </ThemedText>
-      </ThemedView>
-    </ParallaxScrollView>
+  useEffect(() => {
+    // Remove legacy Identity Blade data so app no longer gets stuck on that flow.
+    void AsyncStorage.multiRemove([
+      'identity_blade_data',
+      'identity_blade_history',
+      'identity_history',
+      'identity_profile',
+      'identity_progress',
+    ]);
+  }, []);
+
+  useEffect(() => {
+    let alive = true;
+    setLoading(true);
+    setError(null);
+    (async () => {
+      try {
+        const [discover, popular] = await Promise.all([fetchDiscover(1), fetchPopular()]);
+        if (!alive) return;
+        setMovies(dedupeMovies([...discover, ...popular]));
+      } catch (e: any) {
+        if (alive) setError(e?.message ?? 'Failed to load movies');
+      } finally {
+        if (alive) setLoading(false);
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  const loadMore = async () => {
+    const next = page + 1;
+    setPage(next);
+    const more = await fetchDiscover(next);
+    setMovies((prev) => dedupeMovies([...prev, ...more]));
+  };
+
+  const empty = useMemo(
+    () => (
+      <View style={[styles.loading, { height }]}>
+        {loading ? (
+          <Text style={styles.loadingText}>Loading QuickPick...</Text>
+        ) : error ? (
+          <>
+            <Text style={styles.loadingText}>{'⚠️ ' + error}</Text>
+            <Text style={[styles.loadingText, { fontSize: 13, marginTop: 8, opacity: 0.6 }]}>
+              Check your TMDB API key in .env
+            </Text>
+          </>
+        ) : (
+          <Text style={styles.loadingText}>No movies right now</Text>
+        )}
+      </View>
+    ),
+    [height, loading, error]
+  );
+
+  return (
+    <View style={styles.root}>
+      <FlashList
+        data={movies}
+        keyExtractor={(item) => String(item.id)}
+        pagingEnabled
+        snapToInterval={height}
+        decelerationRate="fast"
+        onEndReachedThreshold={0.3}
+        onEndReached={() => {
+          void loadMore();
+        }}
+        ListEmptyComponent={empty}
+        renderItem={({ item }) => {
+          const backdrop = item.backdrop_path
+            ? `https://image.tmdb.org/t/p/w1280${item.backdrop_path}`
+            : item.poster_path
+              ? `https://image.tmdb.org/t/p/w780${item.poster_path}`
+              : undefined;
+
+          return (
+            <View style={[styles.card, { height }]}>
+              {backdrop ? (
+                <Image source={{ uri: backdrop }} style={styles.backdrop} contentFit="cover" />
+              ) : (
+                <View style={styles.backdropFallback} />
+              )}
+              <View style={styles.overlay} />
+              <View style={styles.topBar}>
+                <Text style={styles.brand}>QuickPick</Text>
+              </View>
+              <View style={styles.bottom}>
+                <Text style={styles.title} numberOfLines={2}>
+                  {item.title}
+                </Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.genreRow}>
+                  {genreLabels(item.genre_ids).map((g) => (
+                    <View key={g} style={styles.pill}>
+                      <Text style={styles.pillText}>{g}</Text>
+                    </View>
+                  ))}
+                </ScrollView>
+                <Text style={styles.meta}>⭐ {item.vote_average?.toFixed(1) ?? '—'}</Text>
+                <Text style={styles.overview} numberOfLines={3}>
+                  {item.overview || 'No overview available.'}
+                </Text>
+                <Pressable
+                  style={styles.saveBtn}
+                  onPress={() => {
+                    setWatchlist((prev) => {
+                      const next = new Set(prev);
+                      if (next.has(item.id)) next.delete(item.id);
+                      else next.add(item.id);
+                      return next;
+                    });
+                  }}
+                >
+                  <Text style={styles.saveBtnText}>
+                    {watchlist.has(item.id) ? 'Saved' : 'Save to Watchlist'}
+                  </Text>
+                </Pressable>
+              </View>
+            </View>
+          );
+        }}
+      />
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  titleContainer: {
-    flexDirection: 'row',
+  root: {
+    flex: 1,
+    backgroundColor: '#000',
+  },
+  loading: {
+    justifyContent: 'center',
     alignItems: 'center',
-    gap: 8,
+    backgroundColor: '#000',
   },
-  stepContainer: {
-    gap: 8,
-    marginBottom: 8,
+  loadingText: {
+    color: '#fff',
+    fontSize: 16,
+    opacity: 0.8,
   },
-  reactLogo: {
-    height: 178,
-    width: 290,
-    bottom: 0,
-    left: 0,
-    position: 'absolute',
+  card: { width: '100%', backgroundColor: '#000' },
+  backdrop: { ...StyleSheet.absoluteFillObject },
+  backdropFallback: { ...StyleSheet.absoluteFillObject, backgroundColor: '#141414' },
+  overlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.45)' },
+  topBar: { position: 'absolute', top: 60, left: 16, right: 16 },
+  brand: { color: '#fff', fontSize: 24, fontWeight: '700' },
+  bottom: { position: 'absolute', left: 16, right: 16, bottom: 70 },
+  title: { color: '#fff', fontSize: 34, fontWeight: '800' },
+  genreRow: { maxHeight: 32, marginTop: 8 },
+  pill: {
+    backgroundColor: 'rgba(255,255,255,0.16)',
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    marginRight: 8,
   },
+  pillText: { color: '#fff', fontSize: 12 },
+  meta: { color: '#F4B000', marginTop: 10, fontSize: 14, fontWeight: '600' },
+  overview: { color: 'rgba(255,255,255,0.9)', marginTop: 8, lineHeight: 20 },
+  saveBtn: {
+    marginTop: 14,
+    height: 44,
+    borderRadius: 12,
+    backgroundColor: '#F4B000',
+    alignItems: 'center',
+    justifyContent: 'center',
+    alignSelf: 'flex-start',
+    paddingHorizontal: 14,
+  },
+  saveBtnText: { color: '#000', fontWeight: '700' },
 });
