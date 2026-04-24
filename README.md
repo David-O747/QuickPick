@@ -1,8 +1,10 @@
-<img width="1284" height="2778" alt="IMG_3935 5" src="https://github.com/user-attachments/assets/08cdf3f5-7414-41b6-8985-36c5a08c98ac" />
-<img width="1284" height="2778" alt="IMG_3937 3" src="https://github.com/user-attachments/assets/a0022c57-9a52-409a-87a8-166e2a030a12" />
-<img width="1284" height="2778" alt="IMG_3938 2" src="https://github.com/user-attachments/assets/d466a3fa-458f-4391-aa2c-f707d969d2e2" />
-
-
+<table>
+  <tr>
+    <td><img width="240" alt="IMG_3935 5" src="https://github.com/user-attachments/assets/08cdf3f5-7414-41b6-8985-36c5a08c98ac" /></td>
+    <td><img width="240" alt="IMG_3937 3" src="https://github.com/user-attachments/assets/a0022c57-9a52-409a-87a8-166e2a030a12" /></td>
+    <td><img width="240" alt="IMG_3938 2" src="https://github.com/user-attachments/assets/d466a3fa-458f-4391-aa2c-f707d969d2e2" /></td>
+  </tr>
+</table>
 
 QuickPick is a mobile movie discovery app built with Expo and React Native.  
 It shows a swipe-style feed of movies from TMDB, with quick details and watchlist save toggles.
